@@ -1,8 +1,5 @@
 use std::env;
-use std::fs::File;
 use std::process;
-use std::io::prelude::*;
-
 use lib::assembler;
 
 mod lib;
