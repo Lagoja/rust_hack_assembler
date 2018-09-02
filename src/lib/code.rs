@@ -2,13 +2,13 @@ use std::u16;
 
 pub fn dest(mnemonic: &str) -> Result<u16, &'static str> {
     let result = match mnemonic {
-        "M" => 1,
-        "D" => 2,
-        "MD" => 3,
-        "A" => 4,
-        "AM" => 5,
-        "AD" => 6,
-        "AMD" => 7,
+        "M" => 8,
+        "D" => 16,
+        "MD" => 24,
+        "A" => 32,
+        "AM" => 40,
+        "AD" => 48,
+        "AMD" => 56,
         "" => 0,
         _ => return Err("Could not parse dest")
     };
@@ -18,13 +18,13 @@ pub fn dest(mnemonic: &str) -> Result<u16, &'static str> {
 
 pub fn jmp(mnemonic: &str) -> Result<u16, &'static str> {
     let result = match mnemonic {
-        "JGT" => 8,
-        "JEQ" => 16,
-        "JGE" => 24,
-        "JLT" => 32,
-        "JNE" => 40,
-        "JLE" => 48,
-        "JMP" => 56,
+        "JGT" => 1,
+        "JEQ" => 2,
+        "JGE" => 3,
+        "JLT" => 4,
+        "JNE" => 5,
+        "JLE" => 6,
+        "JMP" => 7,
         "" => 0,
         _ => return Err("Could not parse jmp")
     };
@@ -36,8 +36,8 @@ pub fn comp(mnemonic: &str) -> Result<u16, &'static str> {
     let result: u16 = match mnemonic {
         "0" => 2688,
         "1" => 4032,
-        "-1" => 3456,
-        "D" => 769,
+        "-1" => 3712,
+        "D" => 768,
         "!D" => 832,
         "-D" => 960,
         "-A" => 3264,

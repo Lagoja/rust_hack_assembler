@@ -1,18 +1,14 @@
 // Module for parsing and reading the files.
-use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CommandType {
-    A_COMMAND,
-    C_COMMAND,
-    L_COMMAND,
+    ACommand,
+    CCommand,
 }
 
 #[derive(Debug)]
 pub struct Command {
-    pub command_type: CommandType,
+    pub command_type: Option<CommandType>,
     pub symbol: Option<String>,
     pub dest: Option<String>,
     pub comp: Option<String>,
@@ -21,7 +17,7 @@ pub struct Command {
 
 impl Command {
     pub fn new(
-        command_type: CommandType,
+        command_type: Option<CommandType>,
         symbol: Option<String>,
         dest: Option<String>,
         comp: Option<String>,
@@ -36,9 +32,9 @@ impl Command {
         }
     }
 
-    pub fn c_lexer(buf: &str) -> (Option<String>, Option<String>, Option<String>) {
+    fn c_lexer(buf: &str) -> (Option<String>, Option<String>, Option<String>) {
         let vec1: Vec<&str> = buf.split("=").collect::<Vec<&str>>();
-        let vec2: Vec<&str> = vec1[1].split(";").collect::<Vec<&str>>();
+        let vec2: Vec<&str> = vec1[vec1.len()-1].split(";").collect::<Vec<&str>>();
 
         let dest: Option<String> = vec1.get(0).map(|s| s.to_string());
         let comp: Option<String> = vec2.get(0).map(|s| s.to_string());
@@ -49,41 +45,41 @@ impl Command {
 
     pub fn parse(buf: String) -> Command {
         let mut buf_iter = buf.chars();
-        if buf_iter.next().unwrap() == '@' {
+        let next_char = buf_iter.next().unwrap_or('/');
+        if next_char == '/' {
+            return Command::new(None, None, None, None, None);
+        } else if next_char == '@' {
             let sym = String::from(buf_iter.as_str());
-            return Command::new(CommandType::A_COMMAND, Some(sym), None, None, None);
+            return Command::new(Some(CommandType::ACommand), Some(sym), None, None, None);
         } else {
             let (dest, comp, jump) = Command::c_lexer(buf.as_ref());
-            return Command::new(CommandType::C_COMMAND, None, dest, comp, jump);
+            return Command::new(Some(CommandType::CCommand), None, dest, comp, jump);
         };
     }
 }
 
 #[derive(Debug)]
 pub struct Parser {
-    file: BufReader<File>,
+    file: Vec<String>,
     next_command: usize,
-    pub current_command: Option<Command>,
 }
 
 impl Parser {
-    pub fn new(file: File) -> Parser {
-        let f = BufReader::new(file);
+    pub fn new(file: Vec<String>) -> Parser {
 
         Parser {
-            file: f,
+            file: file,
             next_command: 0,
-            current_command: None,
         }
     }
 
-    pub fn has_more_commands(self) -> bool {
-        self.file.lines().count() > 0
+    pub fn has_more_commands(&self) -> bool {
+        &self.file.len() - &self.next_command > 0
     }
 
-    pub fn advance(&mut self) {
-        let mut buf = String::new();
-        self.file.read_line(&mut buf);
-        self.current_command = Some(Command::parse(buf));
+    pub fn advance(&mut self) -> Command {
+        let line = self.file.get(self.next_command).unwrap().to_string();
+        self.next_command += 1;
+        Command::parse(line)
     }
 }

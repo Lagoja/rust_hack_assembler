@@ -1,2 +1,7 @@
 /target
 **/*.rs.bk
+.DS_Store
+/test_programs
+test.hack
+test.asm
+
