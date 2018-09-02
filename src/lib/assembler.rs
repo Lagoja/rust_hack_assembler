@@ -2,7 +2,6 @@ use lib::code::*;
 use lib::parser::*;
 use std::env;
 use std::error::Error;
-use std::ffi::OsString;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -30,8 +29,7 @@ impl Config {
         }
 
         let of = filename.clone();
-        let mut out_os = of.with_extension("hack");
-        let outfile = PathBuf::from(out_os);
+        let outfile = PathBuf::from(of.with_extension("hack"));
 
         Ok(Config { filename, outfile })
     }
@@ -41,7 +39,7 @@ pub fn run(config: Config) -> Result<(), Box<Error>> {
     let f: File = File::open(&config.filename)?;
     let br = BufReader::new(f);
     let commands: Vec<String> = br.lines()
-        .map(|l| l.expect("Could not parse line"))
+        .map(|l| l.expect("Could not load file"))
         .collect();
 
     let mut machine_code = String::new();
@@ -53,13 +51,9 @@ pub fn run(config: Config) -> Result<(), Box<Error>> {
         let mut mc = match comm.command_type {
             Some(CommandType::ACommand) => translate_acommand(comm),
             Some(CommandType::CCommand) => translate_ccommand(comm),
-            None => String::new()
+            None => continue
         };
 
-        if mc.is_empty(){
-            continue
-        }
-        // println!("{}", mc);
         mc.push_str("\n");
         machine_code.push_str(&mc);
     }
