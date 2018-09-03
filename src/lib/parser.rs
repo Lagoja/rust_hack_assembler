@@ -1,4 +1,4 @@
-// Module for parsing and reading the files.
+// Module for parsing and reading assembly code. Iterates over a vector of strings and returns Command objects that represent the command.
 
 #[derive(Debug, PartialEq)]
 pub enum CommandType {

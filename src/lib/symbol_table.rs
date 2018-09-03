@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq)]
-struct SymbolTable {
+pub struct SymbolTable {
     symbols: HashMap<String, u16>,
 }
 
