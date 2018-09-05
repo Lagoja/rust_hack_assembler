@@ -26,8 +26,13 @@ impl Config {
             }
         };
 
-        if filename.extension().unwrap() != "asm" {
-            return Err("Please provide a .asm file");
+        match filename.extension() {
+            Some(x) => {
+                if x != "asm" {
+                    return Err("Please provide a .asm file");
+                }
+            }
+            None => return Err("Please provide a .asm file"),
         }
 
         let of = filename.clone();
@@ -50,7 +55,7 @@ pub fn run(config: Config) -> Result<(), Box<Error>> {
     let l_commands = process_pseudocommands(raw_commands, &mut st).unwrap();
 
     let parser = Parser::new(l_commands);
-    let machine_code: String = parse_commands(parser);
+    let machine_code: String = parse_commands(parser, &mut st);
 
     write_hack_file(machine_code, &config.outfile)
 }
@@ -66,40 +71,44 @@ fn process_pseudocommands(
 
     for command in raw_commands {
         let command = String::from(command.trim());
+
         if command.is_empty() | comment_re().is_match(&command) {
+            //Check for comment or empty line
             err_pc += 1;
             continue;
-        }
-
-        if pseudocommand_re().is_match(&command) {
+        } else if pseudocommand_re().is_match(&command) {
+            //Check for pseudocommands and labels
             let caps = pseudocommand_inner_re().captures(&command).unwrap();
             let symbol = caps.get(0).unwrap().as_str();
             st.add_entry(symbol, pc);
             err_pc += 1;
         } else if acommand_re().is_match(&command) | ccommand_re().is_match(&command) {
+            //Check for an a or c command
             l_commands.push(command);
             pc += 1;
             err_pc += 1
         } else {
-            return Err(err_pc);
+            return Err(err_pc); //The line couldn't be parsed, so return the an error with the line number
         }
     }
     Ok(l_commands)
 }
 
-fn parse_commands(mut parser: Parser) -> String {
+fn parse_commands(mut parser: Parser, mut st: SymbolTable) -> String {
     let mut machine_code = String::new();
+    let mut pc = 0;
 
     while parser.has_more_commands() {
         let comm: Command = parser.advance();
         let mut mc = match comm.command_type {
-            Some(CommandType::ACommand) => translate_acommand(comm),
+            Some(CommandType::ACommand) => translate_acommand(comm, st, pc),
             Some(CommandType::CCommand) => translate_ccommand(comm),
             None => continue,
         };
 
         mc.push_str("\n");
         machine_code.push_str(&mc);
+        pc += 1;
     }
     machine_code
 }
@@ -112,9 +121,19 @@ fn write_hack_file(machine_code: String, path_name: &PathBuf) -> Result<(), Box<
     Ok(())
 }
 
-fn translate_acommand(comm: Command) -> String {
-    let a: u16 = comm.symbol.unwrap().parse::<u16>().unwrap();
-    format!("{:016b}", a)
+fn translate_acommand(comm: Command, mut st: SymbolTable, pc: u16) -> String {
+    let mut sym = comm.symbol.unwrap();
+    if !numeric_asymbol_re().is_match(&sym) {
+        match st.contains(&sym) {
+            true => sym = st.get_address(&sym).unwrap().to_string(),
+            false => {
+                st.add_entry(&sym, pc);
+                sym = pc.to_string();
+            }
+        }
+    }
+    let a: u16 = sym.parse::<u16>().unwrap();
+    return format!("{:016b}", a);
 }
 
 fn translate_ccommand(comm: Command) -> String {

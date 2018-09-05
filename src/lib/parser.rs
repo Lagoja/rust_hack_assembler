@@ -1,5 +1,7 @@
 // Module for parsing and reading assembly code. Iterates over a vector of strings and returns Command objects that represent the command.
 
+use lib::regexes::*;
+
 #[derive(Debug, PartialEq)]
 pub enum CommandType {
     ACommand,
@@ -50,13 +52,19 @@ impl Command {
     }
 
     pub fn parse(buf: String) -> Command {
-        let mut buf_iter = buf.chars();
-        let next_char = buf_iter.next().unwrap_or('/');
-        if next_char == '/' {
+        let command = String::from(buf.trim());
+        if command.is_empty() | comment_re().is_match(&command) {
             // Signal that we should skip by returning None in all Command fields
             return Command::new(None, None, None, None, None);
-        } else if next_char == '@' {
-            let sym = String::from(buf_iter.as_str());
+        } else if acommand_re().is_match(&command) {
+            let sym = String::from(
+                acommand_symbol_re()
+                    .captures(&command)
+                    .unwrap()
+                    .get(0)
+                    .unwrap()
+                    .as_str(),
+            );
             return Command::new(Some(CommandType::ACommand), Some(sym), None, None, None);
         } else {
             let (dest, comp, jump) = Command::c_lexer(buf.as_ref());
@@ -140,26 +148,43 @@ mod test {
         assert_eq!(comm, Command::new(None, None, None, None, None));
     }
 
-   #[test]
+    #[test]
     fn parser_comment() {
         let input = "// Test comment";
         let comm: Command = Command::parse(String::from(input));
         assert_eq!(comm, Command::new(None, None, None, None, None));
     }
 
-   #[test]
+    #[test]
     fn parser_acommand() {
         let input = "@12345";
         let comm: Command = Command::parse(String::from(input));
-        assert_eq!(comm, Command::new(Some(CommandType::ACommand), Some(String::from("12345")), None, None, None));
+        assert_eq!(
+            comm,
+            Command::new(
+                Some(CommandType::ACommand),
+                Some(String::from("12345")),
+                None,
+                None,
+                None
+            )
+        );
     }
 
-   #[test]
+    #[test]
     fn parser_ccommand() {
         let input = "D=D+1";
         let comm: Command = Command::parse(String::from(input));
-        assert_eq!(comm, Command::new(Some(CommandType::CCommand), None, Some(String::from("D")), Some(String::from("D+1")), None));
-        
+        assert_eq!(
+            comm,
+            Command::new(
+                Some(CommandType::CCommand),
+                None,
+                Some(String::from("D")),
+                Some(String::from("D+1")),
+                None
+            )
+        );
     }
-    
+
 }

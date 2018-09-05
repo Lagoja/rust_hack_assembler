@@ -16,6 +16,14 @@ pub fn acommand_re() -> Regex {
     Regex::new(r"^@.*").unwrap()
 }
 
+pub fn acommand_symbol_re() -> Regex {
+    Regex::new(r"\b.+").unwrap()
+}
+
 pub fn ccommand_re() -> Regex {
     Regex::new(r"(^.*=.*|^.*;.*)").unwrap()
+}
+
+pub fn numeric_asymbol_re() -> Regex{
+    Regex::new(r"^\d*$").unwrap()
 }
