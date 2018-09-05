@@ -3,6 +3,7 @@ use std::collections::HashMap;
 #[derive(Debug, PartialEq)]
 pub struct SymbolTable {
     symbols: HashMap<String, u16>,
+    pub current_address: u16,
 }
 
 impl SymbolTable {
@@ -35,6 +36,7 @@ impl SymbolTable {
     pub fn new() -> SymbolTable {
         SymbolTable {
             symbols: HashMap::new(),
+            current_address: 16,
         }
     }
 
@@ -55,6 +57,10 @@ impl SymbolTable {
     pub fn get_address(&self, symbol: &str) -> Option<&u16> {
         self.symbols.get(symbol)
     }
+
+    pub fn get_free_address(&self) -> u16 {
+        self.current_address
+    }
 }
 
 #[cfg(test)]
@@ -64,7 +70,7 @@ mod test {
     #[test]
     fn symboltable_new() {
         let st = SymbolTable::new();
-        assert_eq!(st,SymbolTable{symbols: HashMap::new()});
+        assert_eq!(st,SymbolTable{symbols: HashMap::new(), current_address: 16});
     }
 
     #[test]

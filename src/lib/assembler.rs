@@ -1,6 +1,6 @@
 use lib::code::*;
 use lib::parser::*;
-use lib::regexes::*;
+use regex::Regex;
 use lib::symbol_table::*;
 use std::env;
 use std::error::Error;
@@ -54,61 +54,59 @@ pub fn run(config: Config) -> Result<(), Box<Error>> {
 
     let l_commands = process_pseudocommands(raw_commands, &mut st).unwrap();
 
-    let parser = Parser::new(l_commands);
-    let machine_code: String = parse_commands(parser, &mut st);
+    let parser = Parser::from(l_commands, st);
+    let machine_code: String = parse_commands(parser);
 
     write_hack_file(machine_code, &config.outfile)
 }
 
 fn process_pseudocommands(
-    //Adds pseudocommands to the symbol table, and also cleans out comments and empty lines for good measure.
+    //Adds pseudocommands to the symbol table, and also cleans out line comments and empty lines for good measure. Will not remove inline comments at this stage.
     raw_commands: Vec<String>,
     st: &mut SymbolTable,
-) -> Result<Vec<String>, u16> {
+) -> Result<Vec<String>, String> {
     let mut pc = 0;
     let mut err_pc = 0;
     let mut l_commands: Vec<String> = vec![];
+    let pc_re = Regex::new(r"^\([a-zA-z0-9\.$_-]*\)").unwrap();
+    let pc_re_i = Regex::new(r"\b\S*\b").unwrap();
+    let c_re = Regex::new(r"^//.*$").unwrap();
 
     for command in raw_commands {
         let command = String::from(command.trim());
 
-        if command.is_empty() | comment_re().is_match(&command) {
+        if command.is_empty() | c_re.is_match(&command) {
             //Check for comment or empty line
             err_pc += 1;
             continue;
-        } else if pseudocommand_re().is_match(&command) {
+        } else if pc_re.is_match(&command) {
             //Check for pseudocommands and labels
-            let caps = pseudocommand_inner_re().captures(&command).unwrap();
+            let caps = pc_re_i.captures(&command).unwrap();
             let symbol = caps.get(0).unwrap().as_str();
             st.add_entry(symbol, pc);
-            err_pc += 1;
-        } else if acommand_re().is_match(&command) | ccommand_re().is_match(&command) {
-            //Check for an a or c command
+        } else {
             l_commands.push(command);
             pc += 1;
-            err_pc += 1
-        } else {
-            return Err(err_pc); //The line couldn't be parsed, so return the an error with the line number
         }
+        err_pc += 1;
+        println!("{}", err_pc);
     }
     Ok(l_commands)
 }
 
-fn parse_commands(mut parser: Parser, mut st: SymbolTable) -> String {
+fn parse_commands(mut parser: Parser) -> String {
     let mut machine_code = String::new();
-    let mut pc = 0;
 
     while parser.has_more_commands() {
         let comm: Command = parser.advance();
         let mut mc = match comm.command_type {
-            Some(CommandType::ACommand) => translate_acommand(comm, st, pc),
+            Some(CommandType::ACommand) => translate_acommand(comm),
             Some(CommandType::CCommand) => translate_ccommand(comm),
             None => continue,
         };
 
         mc.push_str("\n");
         machine_code.push_str(&mc);
-        pc += 1;
     }
     machine_code
 }
@@ -121,17 +119,8 @@ fn write_hack_file(machine_code: String, path_name: &PathBuf) -> Result<(), Box<
     Ok(())
 }
 
-fn translate_acommand(comm: Command, mut st: SymbolTable, pc: u16) -> String {
-    let mut sym = comm.symbol.unwrap();
-    if !numeric_asymbol_re().is_match(&sym) {
-        match st.contains(&sym) {
-            true => sym = st.get_address(&sym).unwrap().to_string(),
-            false => {
-                st.add_entry(&sym, pc);
-                sym = pc.to_string();
-            }
-        }
-    }
+fn translate_acommand(comm: Command) -> String {
+    let sym = comm.symbol.unwrap();
     let a: u16 = sym.parse::<u16>().unwrap();
     return format!("{:016b}", a);
 }
@@ -162,7 +151,8 @@ mod test {
 
     #[test]
     fn translate_ccommand_destcomp_test() {
-        let comm = Command::parse(String::from("D=A"));
+        let mut parser = Parser::new();
+        let comm = parser.parse(String::from("D=A"));
         let outstring = translate_ccommand(comm);
         assert_eq!(outstring, "1110110000010000");
     }
@@ -174,16 +164,49 @@ mod test {
             String::new(),
             String::from("(LOOP)"),
             String::from("@1234"),
+            String::from("@1234  //Dumb Comment 2"),
             String::from("    D=D+A"),
+            String::from("D=A"),
+            String::from("@R13"),
+            String::from("@OUTPUT_FIRST"),
+            String::from("D;JGT    //dumb comment"),
         ];
 
-        let testResult: Vec<String> = vec![String::from("@1234"), String::from("D=D+A")];
+        let testResult: Vec<String> = vec![
+            String::from("@1234"),
+            String::from("@1234  //Dumb Comment 2"),
+            String::from("D=D+A"),
+            String::from("D=A"),
+            String::from("@R13"),
+            String::from("@OUTPUT_FIRST"),
+            String::from("D;JGT    //dumb comment"),
+        ];
 
         let mut st = SymbolTable::new();
 
         let output = process_pseudocommands(input, &mut st).unwrap();
         assert_eq!(output, testResult);
         assert_eq!(st.get_address("LOOP").unwrap(), &0);
+    }
+
+    #[test]
+    fn process_commands_test() {
+        let input: Vec<String> = vec![
+            String::from("@1234"),
+            String::from("D=D+A  //Dumb Comment 2"),
+            String::from("@Hello"),
+            String::from("D=M     //dumb comment"),
+        ];
+        let mut st = SymbolTable::new();
+        st.load_starting_table();
+        let mut parser = Parser::from(input, st);
+        let output = parse_commands(parser);
+        let result = "0000010011010010
+1110000010010000
+0000000000010000
+1111110000010000
+";
+        assert_eq!(output, result);
     }
 
 }

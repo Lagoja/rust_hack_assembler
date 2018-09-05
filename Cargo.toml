@@ -5,3 +5,4 @@ authors = ["John Lago <750845+Lagoja@users.noreply.github.com>"]
 
 [dependencies]
 regex = '1'
+lazy_static = "1.1.0"
