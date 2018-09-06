@@ -1,7 +1,7 @@
 use lib::code::*;
 use lib::parser::*;
-use regex::Regex;
 use lib::symbol_table::*;
+use regex::Regex;
 use std::env;
 use std::error::Error;
 use std::fs::File;
@@ -61,13 +61,13 @@ pub fn run(config: Config) -> Result<(), Box<Error>> {
 }
 
 fn process_pseudocommands(
-    //Adds pseudocommands to the symbol table, and also cleans out line comments and empty lines for good measure. Will not remove inline comments at this stage.
     raw_commands: Vec<String>,
     st: &mut SymbolTable,
 ) -> Result<Vec<String>, String> {
+    //Adds pseudocommands to the symbol table, and also cleans out line comments and empty lines for good measure. Will not remove inline comments at this stage.
     let mut pc = 0;
-    let mut err_pc = 0;
     let mut l_commands: Vec<String> = vec![];
+    
     let pc_re = Regex::new(r"^\([a-zA-z0-9\.$_-]*\)").unwrap();
     let pc_re_i = Regex::new(r"\b\S*\b").unwrap();
     let c_re = Regex::new(r"^//.*$").unwrap();
@@ -76,11 +76,8 @@ fn process_pseudocommands(
         let command = String::from(command.trim());
 
         if command.is_empty() | c_re.is_match(&command) {
-            //Check for comment or empty line
-            err_pc += 1;
             continue;
         } else if pc_re.is_match(&command) {
-            //Check for pseudocommands and labels
             let caps = pc_re_i.captures(&command).unwrap();
             let symbol = caps.get(0).unwrap().as_str();
             st.add_entry(symbol, pc);
@@ -88,8 +85,6 @@ fn process_pseudocommands(
             l_commands.push(command);
             pc += 1;
         }
-        err_pc += 1;
-        println!("{}", err_pc);
     }
     Ok(l_commands)
 }
@@ -113,9 +108,7 @@ fn parse_commands(mut parser: Parser) -> String {
 
 fn write_hack_file(machine_code: String, path_name: &PathBuf) -> Result<(), Box<Error>> {
     let mut f = File::create(path_name)?;
-
     f.write_all(machine_code.as_bytes())?;
-
     Ok(())
 }
 

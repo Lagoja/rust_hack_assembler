@@ -34,22 +34,6 @@ impl Command {
         }
     }
 
-    fn c_lexer(buf: &str) -> (Option<String>, Option<String>, Option<String>) {
-        let vec1: Vec<&str> = buf.split("=").collect::<Vec<&str>>();
-        let vec2: Vec<&str> = vec1[vec1.len() - 1].split(";").collect::<Vec<&str>>();
-
-        let dest: Option<String>;
-
-        if vec1.len() > 1 {
-            dest = vec1.get(0).map(|s| s.to_string());
-        } else {
-            dest = None
-        }
-        let comp: Option<String> = vec2.get(0).map(|s| s.to_string());
-        let jmp: Option<String> = vec2.get(1).map(|s| s.to_string());
-
-        (dest, comp, jmp)
-    }
 }
 
 #[derive(Debug)]
@@ -77,6 +61,16 @@ impl Parser {
         }
     }
 
+    pub fn has_more_commands(&self) -> bool {
+        &self.file.len() - &self.next_command > 0
+    }
+
+    pub fn advance(&mut self) -> Command {
+        let line = self.file.get(self.next_command).unwrap().to_string();
+        self.next_command += 1;
+        self.parse(line)
+    }
+
     pub fn parse(&mut self, buf: String) -> Command {
         //By this point, the L commands should be in the symboltable. So all I need to do is check the a_command symbols against the table and add them if they are not present
         let mut command = String::from(buf.trim());
@@ -86,6 +80,7 @@ impl Parser {
             static ref N_SYM_RE: Regex = Regex::new(r"^\d*$").unwrap();
             static ref AC_SYMBOL_RE: Regex = Regex::new(r"\b.+").unwrap();
         }
+        //Extract this into a separate function
         if AC_RE.is_match(&command) {
             let mut sym = String::from(
                 AC_SYMBOL_RE
@@ -112,20 +107,28 @@ impl Parser {
             sym = Parser::clean_inline_comments(sym);
             return Command::new(Some(CommandType::ACommand), Some(sym), None, None, None);
         } else {
-            let (dest, comp, jump) = Command::c_lexer(command.as_ref());
+            let (dest, comp, jump) = Parser::c_lexer(command.as_ref());
             return Command::new(Some(CommandType::CCommand), None, dest, comp, jump);
         };
     }
 
-    pub fn has_more_commands(&self) -> bool {
-        &self.file.len() - &self.next_command > 0
-    }
+    fn c_lexer(buf: &str) -> (Option<String>, Option<String>, Option<String>) {
+        let vec1: Vec<&str> = buf.split("=").collect::<Vec<&str>>();
+        let vec2: Vec<&str> = vec1[vec1.len() - 1].split(";").collect::<Vec<&str>>();
 
-    pub fn advance(&mut self) -> Command {
-        let line = self.file.get(self.next_command).unwrap().to_string();
-        self.next_command += 1;
-        self.parse(line)
+        let dest: Option<String>;
+
+        if vec1.len() > 1 {
+            dest = vec1.get(0).map(|s| s.to_string());
+        } else {
+            dest = None
+        }
+        let comp: Option<String> = vec2.get(0).map(|s| s.to_string());
+        let jmp: Option<String> = vec2.get(1).map(|s| s.to_string());
+
+        (dest, comp, jmp)
     }
+    
 
     fn clean_inline_comments(sym: String) -> String {
         let mut s = sym.clone();
@@ -169,7 +172,7 @@ mod test {
     #[test]
     fn c_lexer_destcomp() {
         let input = "A=D";
-        let (dest, comp, jmp) = Command::c_lexer(input);
+        let (dest, comp, jmp) = Parser::c_lexer(input);
         assert_eq!(dest, Some(String::from("A")));
         assert_eq!(comp, Some(String::from("D")));
         assert_eq!(jmp, None);
@@ -178,7 +181,7 @@ mod test {
     #[test]
     fn c_lexer_compjmp() {
         let input = "D;JEQ";
-        let (dest, comp, jmp) = Command::c_lexer(input);
+        let (dest, comp, jmp) = Parser::c_lexer(input);
         assert_eq!(dest, None);
         assert_eq!(comp, Some(String::from("D")));
         assert_eq!(jmp, Some(String::from("JEQ")));
@@ -187,7 +190,7 @@ mod test {
     #[test]
     fn c_lexer_destcompjmp() {
         let input = "D=A+1;JGT";
-        let (dest, comp, jmp) = Command::c_lexer(input);
+        let (dest, comp, jmp) = Parser::c_lexer(input);
         assert_eq!(dest, Some(String::from("D")));
         assert_eq!(comp, Some(String::from("A+1")));
         assert_eq!(jmp, Some(String::from("JGT")));
@@ -197,28 +200,11 @@ mod test {
     //Currently this assigns to comp, which might be ok since it's found and handled later in the flow. Still, this should probably return none, or throw an error indicating the statement is invalid.
     fn c_lexer_nonsense() {
         let input = "blahblahblah";
-        let (dest, comp, jmp) = Command::c_lexer(input);
+        let (dest, comp, jmp) = Parser::c_lexer(input);
         assert_eq!(dest, None);
         assert_eq!(comp, Some(String::from("blahblahblah")));
         assert_eq!(jmp, None);
     }
-
-    //Parse Tests
-    // #[test]
-    // fn parser_emptyline() {
-    //     let mut parser = Parser::new();
-    //     let input = "";
-    //     let comm: Command = parser.parse(String::from(input));
-    //     assert_eq!(comm, Command::new(None, None, None, None, None));
-    // }
-
-    // #[test]
-    // fn parser_comment() {
-    //     let mut parser = Parser::new();
-    //     let input = "// Test comment";
-    //     let comm: Command = parser.parse(String::from(input));
-    //     assert_eq!(comm, Command::new(None, None, None, None, None));
-    // }
 
     #[test]
     fn parser_acommand() {
