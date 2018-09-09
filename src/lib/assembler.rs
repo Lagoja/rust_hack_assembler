@@ -165,7 +165,7 @@ mod test {
             String::from("D;JGT    //dumb comment"),
         ];
 
-        let testResult: Vec<String> = vec![
+        let test_result: Vec<String> = vec![
             String::from("@1234"),
             String::from("@1234  //Dumb Comment 2"),
             String::from("D=D+A"),
@@ -178,7 +178,7 @@ mod test {
         let mut st = SymbolTable::new();
 
         let output = process_pseudocommands(input, &mut st).unwrap();
-        assert_eq!(output, testResult);
+        assert_eq!(output, test_result);
         assert_eq!(st.get_address("LOOP").unwrap(), &0);
     }
 
@@ -192,7 +192,7 @@ mod test {
         ];
         let mut st = SymbolTable::new();
         st.load_starting_table();
-        let mut parser = Parser::from(input, st);
+        let parser = Parser::from(input, st);
         let output = parse_commands(parser);
         let result = "0000010011010010
 1110000010010000
