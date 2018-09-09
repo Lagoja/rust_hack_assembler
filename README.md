@@ -1,6 +1,6 @@
 # Simple Assembler for the Hack Machine Language
 
-##TODOs: 
+## TODOs: 
 * Find a way to parse the code without Regular Expressions (build a tokenizer)
     * Potential Tokens: 
         1. Symbol (denoted by @)
